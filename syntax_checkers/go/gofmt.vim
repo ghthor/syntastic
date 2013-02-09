@@ -8,9 +8,8 @@
 "             Want To Public License, Version 2, as published by Sam Hocevar.
 "             See http://sam.zoy.org/wtfpl/COPYING for more details.
 "
-" This syntax checker does not reformat your source code.
-" Use a BufWritePre autocommand to that end:
-"   autocmd FileType go autocmd BufWritePre <buffer> Fmt
+" Use `let g:syntastic_go_checker_option_gofmt_write=1` to allow gofmt to
+" format the source file. Default: disabled.
 "============================================================================
 function! SyntaxCheckers_go_gofmt_IsAvailable()
     return executable('go')
@@ -22,8 +21,40 @@ function! SyntaxCheckers_go_gofmt_GetLocList()
                 \ 'args': '-l',
                 \ 'tail': '1>' . syntastic#util#DevNull(),
                 \ 'subchecker': 'gofmt' })
+
+    " Check the g:syntastic_go_checker_option_gofmt_write variable.
+    if !exists('g:syntastic_go_checker_option_gofmt_write')
+        let g:syntastic_go_checker_option_gofmt_write = 0
+    endif
+
+    " Use gofmt to check the syntax for the current file.
+    " If the syntastic_go_checker_option_gofmt_write is set to 1, let `gofmt`
+    " format the file. The default is for `gofmt` to just print to STDOUT.
+    if g:syntastic_go_checker_option_gofmt_write == 1
+        let makeprg = syntastic#makeprg#build({
+                    \ 'exe': 'gofmt',
+                    \ 'args': '-w -l',
+                    \ 'tail': '',
+                    \ 'subchecker': 'gofmt' })
+    endif
     let errorformat = '%f:%l:%c: %m,%-G%.%#'
-    return SyntasticMake({ 'makeprg': makeprg, 'errorformat': errorformat, 'defaults': {'type': 'e'} })
+
+    let errors = SyntasticMake({ 'makeprg': makeprg, 'errorformat': errorformat, 'defaults': {'type': 'e'} })
+
+    if !empty(errors)
+        return errors
+    endif
+
+    " If the content of the file might have been changed due to
+    " g:syntastic_go_checker_option_gofmt_write being enabled, the buffer must
+    " be reloaded.
+    if g:syntastic_go_checker_option_gofmt_write == 1
+        let view = winsaveview()
+        silent %!gofmt
+        call winrestview(view)
+    endif
+
+    return errors
 endfunction
 
 call g:SyntasticRegistry.CreateAndRegisterChecker({
