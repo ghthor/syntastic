@@ -11,16 +11,19 @@
 " Use `let g:syntastic_go_checker_option_gofmt_write=1` to allow gofmt to
 " format the source file. Default: disabled.
 "============================================================================
-function! SyntaxCheckers_go_gofmt_IsAvailable()
-    return executable('go')
-endfunction
 
-function! SyntaxCheckers_go_gofmt_GetLocList()
-    let makeprg = syntastic#makeprg#build({
-                \ 'exe': 'gofmt',
-                \ 'args': '-l',
-                \ 'tail': '1>' . syntastic#util#DevNull(),
-                \ 'subchecker': 'gofmt' })
+if exists("g:loaded_syntastic_go_gofmt_checker")
+    finish
+endif
+let g:loaded_syntastic_go_gofmt_checker = 1
+
+let s:save_cpo = &cpo
+set cpo&vim
+
+function! SyntaxCheckers_go_gofmt_GetLocList() dict
+    let makeprg = self.makeprgBuild({
+        \ 'args_after': '-l',
+        \ 'tail_after': '> ' . syntastic#util#DevNull() })
 
     " Check the g:syntastic_go_checker_option_gofmt_write variable.
     if !exists('g:syntastic_go_checker_option_gofmt_write')
@@ -31,15 +34,16 @@ function! SyntaxCheckers_go_gofmt_GetLocList()
     " If the syntastic_go_checker_option_gofmt_write is set to 1, let `gofmt`
     " format the file. The default is for `gofmt` to just print to STDOUT.
     if g:syntastic_go_checker_option_gofmt_write == 1
-        let makeprg = syntastic#makeprg#build({
-                    \ 'exe': 'gofmt',
-                    \ 'args': '-w -l',
-                    \ 'tail': '',
-                    \ 'subchecker': 'gofmt' })
+        let makeprg = self.makeprgBuild({
+                    \ 'args_after': '-w -l',
+                    \ 'tail_after': '%' })
     endif
     let errorformat = '%f:%l:%c: %m,%-G%.%#'
 
-    let errors = SyntasticMake({ 'makeprg': makeprg, 'errorformat': errorformat, 'defaults': {'type': 'e'} })
+    let errors = SyntasticMake({
+        \ 'makeprg': makeprg,
+        \ 'errorformat': errorformat,
+        \ 'defaults': {'type': 'e'} })
 
     if !empty(errors)
         return errors
@@ -60,3 +64,8 @@ endfunction
 call g:SyntasticRegistry.CreateAndRegisterChecker({
     \ 'filetype': 'go',
     \ 'name': 'gofmt'})
+
+let &cpo = s:save_cpo
+unlet s:save_cpo
+
+" vim: set et sts=4 sw=4:

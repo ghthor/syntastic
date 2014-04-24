@@ -11,19 +11,27 @@
 " Use `let g:syntastic_go_checker_option_gofmt_write=1` to allow gofmt to
 " format the source file. Default: disabled.
 "============================================================================
-function! SyntaxCheckers_go_go_IsAvailable()
-    return executable('go')
+
+if exists("g:loaded_syntastic_go_go_checker")
+    finish
+endif
+let g:loaded_syntastic_go_go_checker = 1
+
+let s:save_cpo = &cpo
+set cpo&vim
+
+function! SyntaxCheckers_go_go_IsAvailable() dict
+    return executable('go') && executable('gofmt')
 endfunction
 
-function! SyntaxCheckers_go_go_GetLocList()
+function! SyntaxCheckers_go_go_GetLocList() dict
     " Check with gofmt first, since `go build` and `go test` might not report
     " syntax errors in the current file if another file with syntax error is
     " compiled first.
-    let makeprg = syntastic#makeprg#build({
-                \ 'exe': 'gofmt',
-                \ 'args': '-l',
-                \ 'tail': '1>' . syntastic#util#DevNull(),
-                \ 'subchecker': 'gofmt' })
+    let makeprg = self.makeprgBuild({
+        \ 'exe': 'gofmt',
+        \ 'args': '-l',
+        \ 'tail': '> ' . syntastic#util#DevNull() })
 
     " Check the g:syntastic_go_checker_option_gofmt_write variable.
     if !exists('g:syntastic_go_checker_option_gofmt_write')
@@ -34,16 +42,21 @@ function! SyntaxCheckers_go_go_GetLocList()
     " If the syntastic_go_checker_option_gofmt_write is set to 1, let `gofmt`
     " format the file. The default is for `gofmt` to just print to STDOUT.
     if g:syntastic_go_checker_option_gofmt_write == 1
-        let makeprg = syntastic#makeprg#build({
+        let makeprg = self.makeprgBuild({
                     \ 'exe': 'gofmt',
                     \ 'args': '-w -l',
-                    \ 'tail': '%',
-                    \ 'subchecker': 'gofmt' })
+                    \ 'tail': '%' })
     endif
-    let errorformat = '%f:%l:%c: %m,%-G%.%#'
 
-    let errors = SyntasticMake({ 'makeprg': makeprg, 'errorformat': errorformat, 'defaults': {'type': 'e'} })
+    let errorformat =
+        \ '%f:%l:%c: %m,' .
+        \ '%-G%.%#'
 
+    let errors = SyntasticMake({
+        \ 'makeprg': makeprg,
+        \ 'errorformat': errorformat,
+        \ 'cwd': expand('%:p:h'),
+        \ 'defaults': {'type': 'e'} })
     if !empty(errors)
         return errors
     endif
@@ -59,26 +72,35 @@ function! SyntaxCheckers_go_go_GetLocList()
 
     " Test files, i.e. files with a name ending in `_test.go`, are not
     " compiled by `go build`, therefore `go test` must be called for those.
-    if match(expand('%'), '_test.go$') == -1
-        let makeprg = 'go build -o /dev/null'
+    if match(expand('%'), '\m_test\.go$') == -1
+        let makeprg = 'go build ' . syntastic#c#NullOutput()
+        let cleanup = 0
     else
-        let makeprg = 'go test -c -o /dev/null'
+        let makeprg = 'go test -c ' . syntastic#c#NullOutput()
+        let cleanup = 1
     endif
-    let errorformat = '%f:%l:%c:%m,%f:%l%m,%-G#%.%#'
+
+    " The first pattern is for warnings from C compilers.
+    let errorformat =
+        \ '%W%f:%l: warning: %m,' .
+        \ '%E%f:%l:%c:%m,' .
+        \ '%E%f:%l:%m,' .
+        \ '%C%\s%\+%m,' .
+        \ '%-G#%.%#'
 
     " The go compiler needs to either be run with an import path as an
     " argument or directly from the package directory. Since figuring out
-    " the poper import path is fickle, just pushd/popd to the package.
-    let popd = getcwd()
-    let pushd = expand('%:p:h')
-    "
-    " pushd
-    exec 'lcd ' . fnameescape(pushd)
+    " the proper import path is fickle, just cwd to the package.
 
-    let errors = SyntasticMake({ 'makeprg': makeprg, 'errorformat': errorformat })
+    let errors = SyntasticMake({
+        \ 'makeprg': makeprg,
+        \ 'errorformat': errorformat,
+        \ 'cwd': expand('%:p:h'),
+        \ 'defaults': {'type': 'e'} })
 
-    " popd
-    exec 'lcd ' . fnameescape(popd)
+    if cleanup
+        call delete(expand('%:p:h') . syntastic#util#Slash() . expand('%:p:h:t') . '.test')
+    endif
 
     return errors
 endfunction
@@ -86,3 +108,8 @@ endfunction
 call g:SyntasticRegistry.CreateAndRegisterChecker({
     \ 'filetype': 'go',
     \ 'name': 'go'})
+
+let &cpo = s:save_cpo
+unlet s:save_cpo
+
+" vim: set et sts=4 sw=4:
