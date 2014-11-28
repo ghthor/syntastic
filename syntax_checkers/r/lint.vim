@@ -19,6 +19,10 @@ if !exists('g:syntastic_r_lint_styles')
     let g:syntastic_r_lint_styles = 'lint.style'
 endif
 
+if !exists('g:syntastic_r_lint_sort')
+    let g:syntastic_r_lint_sort = 1
+endif
+
 let s:save_cpo = &cpo
 set cpo&vim
 
@@ -39,8 +43,11 @@ function! SyntaxCheckers_r_lint_IsAvailable() dict
 endfunction
 
 function! SyntaxCheckers_r_lint_GetLocList() dict
+    let setwd = syntastic#util#isRunningWindows() ? 'setwd("' . escape(getcwd(), '"\') . '"); ' : ''
+    let setwd = 'setwd("' . escape(getcwd(), '"\') . '"); '
     let makeprg = self.getExecEscaped() . ' --slave --restore --no-save' .
-        \ ' -e ' . syntastic#util#shescape('library(lint); try(lint(commandArgs(TRUE), ' . g:syntastic_r_lint_styles . '))') .
+        \ ' -e ' . syntastic#util#shescape(setwd . 'library(lint); ' .
+        \       'try(lint(commandArgs(TRUE), ' . g:syntastic_r_lint_styles . '))') .
         \ ' --args ' . syntastic#util#shexpand('%')
 
     let errorformat =
@@ -61,8 +68,6 @@ function! SyntaxCheckers_r_lint_GetLocList() dict
             call remove(e, 'subtype')
         endif
     endfor
-
-    call self.setWantSort(1)
 
     return loclist
 endfunction

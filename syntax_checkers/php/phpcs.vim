@@ -9,9 +9,6 @@
 "             See http://sam.zoy.org/wtfpl/COPYING for more details.
 "
 "============================================================================
-"
-" See here for details of phpcs
-"    - phpcs (see http://pear.php.net/package/PHP_CodeSniffer)
 
 if exists("g:loaded_syntastic_php_phpcs_checker")
     finish
@@ -27,8 +24,8 @@ function! SyntaxCheckers_php_phpcs_GetLocList() dict
         \ 'args_after': '--report=csv' })
 
     let errorformat =
-        \ '%-GFile\,Line\,Column\,Type\,Message\,Source\,Severity,'.
-        \ '"%f"\,%l\,%v\,%t%*[a-zA-Z]\,"%m"\,%*[a-zA-Z0-9_.-]\,%*[0-9]'
+        \ '%-GFile\,Line\,Column\,Type\,Message\,Source\,Severity%.%#,'.
+        \ '"%f"\,%l\,%v\,%t%*[a-zA-Z]\,"%m"\,%*[a-zA-Z0-9_.-]\,%*[0-9]%.%#'
 
     return SyntasticMake({
         \ 'makeprg': makeprg,

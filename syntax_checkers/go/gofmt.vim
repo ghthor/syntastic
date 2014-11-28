@@ -8,9 +8,9 @@
 "             Want To Public License, Version 2, as published by Sam Hocevar.
 "             See http://sam.zoy.org/wtfpl/COPYING for more details.
 "
+"============================================================================
 " Use `let g:syntastic_go_checker_option_gofmt_write=1` to allow gofmt to
 " format the source file. Default: disabled.
-"============================================================================
 
 if exists("g:loaded_syntastic_go_gofmt_checker")
     finish
